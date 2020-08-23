@@ -23,4 +23,6 @@ Environmental monitoring for a vivarium
     method = "GET"
 ```
 
+## Roadmap
 
+- Add alerting when undesired environmental values are measured.
