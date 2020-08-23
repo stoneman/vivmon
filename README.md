@@ -2,7 +2,7 @@
 
 Environmental monitoring for a vivarium
 
-![Screenshot](/screenshot.jpg)
+![Screenshot](https://raw.githubusercontent.com/stoneman/vivmon/main/screenshot.jpg)
 
 ## Architecture
 
