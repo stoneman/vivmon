@@ -6,7 +6,7 @@ Environmental monitoring for a vivarium
 
 ## Architecture
 
-- An Arduino sketch designed to run on an ESP8266 based board (developed with an ESP-12F).
+- An [Arduino sketch](/esp8266-temp-humidity-uv-service.ino) designed to run on an ESP8266 based board (developed with an ESP-12F).
 
 - A [Grafana Dashboard](/graphana-dashboard.json) to display current and historical environmental statistics graphically.
 
