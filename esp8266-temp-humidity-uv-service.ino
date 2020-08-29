@@ -43,8 +43,6 @@ void setup() {
     delay(500);
   }
   
-  uv.setIntegrationTime(VEML6075_800MS);
-  uv.setHighDynamic(true);
   uv.setForcedMode(false);
     
   WiFi.begin(ssid, pass);
