@@ -43,8 +43,6 @@ void setup() {
     delay(500);
   }
   
-  uv.setIntegrationTime(VEML6075_800MS);
-  uv.setHighDynamic(true);
   uv.setForcedMode(false);
     
   WiFi.begin(ssid, pass);
@@ -66,19 +64,19 @@ void setup() {
 void loop() {
   WiFiClient client = server.available();
   if (client) {
-    Serial.println("new client");
+    Serial.println(F("new client"));
     bool currentLineIsBlank = true;
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();
         Serial.write(c);
         if (c == '\n' && currentLineIsBlank) {
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: application/json");
-          client.println("Connection: close");
-          client.println("Refresh: 2");
+          client.println(F("HTTP/1.1 200 OK"));
+          client.println(F("Content-Type: application/json"));
+          client.println(F("Connection: close"));
+          client.println(F("Refresh: 2"));
           client.println();
-          client.println("{");
+          client.println(F("{"));
           for (int i = 0; i < dht_count; i++) {
             DHT dht = dht_list[i];
             float temp = dht.readTemperature();
@@ -87,25 +85,27 @@ void loop() {
               continue;
             }
             String dht_name = dht_name_list[i];
-            client.println("  \"" + dht_name + "\": {");
-            client.print("    \"temperature\": ");
+            client.print(F("  \""));
+            client.print(dht_name);
+            client.println(F("\": {"));
+            client.print(F("    \"temperature\": "));
             client.print(temp);
-            client.println(",");
-            client.print("    \"humidity\": ");
+            client.println(F(","));
+            client.print(F("    \"humidity\": "));
             client.println(humidity);
-            client.println("  },");
+            client.println(F("  },"));
           }
-          client.println("  \"uv\": {");
-          client.print("    \"uva\": ");
+          client.println(F("  \"uv\": {"));
+          client.print(F("    \"uva\": "));
           client.print(uv.readUVA());
-          client.println(",");
-          client.print("    \"uvb\": ");
+          client.println(F(","));
+          client.print(F("    \"uvb\": "));
           client.print(uv.readUVB());
-          client.println(",");
-          client.print("    \"uvi\": ");
+          client.println(F(","));
+          client.print(F("    \"uvi\": "));
           client.println(uv.readUVI());
-          client.println("  }");
-          client.println("}");
+          client.println(F("  }"));
+          client.println(F("}"));
           break;
         }
         if (c == '\n') {
@@ -117,7 +117,7 @@ void loop() {
     }
     delay(1);
     client.stop();
-    Serial.println("client disonnected");
+    Serial.println(F("client disonnected"));
   }
 }
 
