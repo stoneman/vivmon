@@ -1,132 +1,125 @@
 #include "DHT.h"
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
 #include <Wire.h>
 #include "Adafruit_VEML6075.h"
+#include <ArduinoJson.h>
 
-char ssid[] = "YOUR-WIFI-SSID";
-char pass[] = "YOUR-WIFI-PASSWORD";
+#ifndef STASSID
+#define STASSID "YOUR-WIFI-SSID"
+#define STAPSK  "YOUR-WIFI-PASSWORD"
+#endif
 
-WiFiServer server(80);
+// The i2c pins for the VEML6075
+const int UV_SDA = 0;
+const int UV_SCL = 2;
 
-// DHT2 temperature sensors
+// DHT22 temperature sensors
 // First parameter is the sensors data pin
+// DHT instances must be added to `dht_list` and require corresponding `JsonObject`s in `dht_json`
 DHT dht_1(4, DHT22);
 DHT dht_2(5, DHT22);
 DHT dht_3(12, DHT22);
 DHT dht_4(14, DHT22);
 
-DHT dht_list[] = { dht_1, dht_2, dht_3, dht_4 }; 
-String dht_name_list[] =  { "dht_1", "dht_2", "dht_3", "dht_4"  };
-
+DHT dht_list[] = { dht_1, dht_2, dht_3, dht_4 };
 int dht_count = sizeof(dht_list) / sizeof(DHT);
+
+const size_t capacity = dht_count*JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(dht_count+1);
+DynamicJsonDocument doc(capacity);
+
+const char* ssid = STASSID;
+const char* password = STAPSK;
+
+ESP8266WebServer server(80);
+
+JsonObject dht_json[] = { doc.createNestedObject("dht_1"), doc.createNestedObject("dht_2"), doc.createNestedObject("dht_3"), doc.createNestedObject("dht_4") };
+JsonObject uv_json = doc.createNestedObject("uv");
 
 Adafruit_VEML6075 uv = Adafruit_VEML6075();
 
-void setup() {
-  Serial.begin(115200);
-  while (!Serial) {
-    ;
+void handleRoot() {
+  for (int i = 0; i < dht_count; i++) {
+    DHT dht = dht_list[i];
+    float temp = dht.readTemperature();
+    if (!isnan(temp)) {
+      dht_json[i]["temperature"] = temp;
+    }      
+    float humidity = dht.readHumidity();
+    if (!isnan(humidity)) {
+      dht_json[i]["humidity"] = humidity;
+    }
   }
-  
-  Serial.println();
-  Serial.println();
+  uv_json["uva"] = uv.readUVA();
+  uv_json["uvb"] = uv.readUVB();
+  uv_json["uvi"] = uv.readUVI();
 
+  String message;
+  serializeJsonPretty(doc, message);
+  
+  server.send(200, F("text/plain"), message);
+}
+
+void handleNotFound() {
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, F("text/plain"), message);
+}
+
+void setup(void) {
+  Serial.begin(115200);
+  
   for (int i = 0; i < dht_count; i++) {
     dht_list[i].begin();
   }
 
-  // Parameters are the VEML6075's SDA and SCL pins
-  Wire.begin(0, 2);
+  Wire.begin(UV_SDA, UV_SCL);
 
   while (!uv.begin()) {
-    Serial.println("Failed to communicate with VEML6075 sensor, check wiring?");
+    Serial.println(F("Failed to communicate with VEML6075 sensor, check wiring?"));
     delay(500);
   }
   
   uv.setForcedMode(false);
-    
-  WiFi.begin(ssid, pass);
-  Serial.print("Connecting to SSID: ");
-  Serial.println(ssid);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
 
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  Serial.println();
   Serial.println();
   
-  server.begin(); 
-  
-  printWifiStatus();
-}
-
-
-void loop() {
-  WiFiClient client = server.available();
-  if (client) {
-    Serial.println(F("new client"));
-    bool currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        Serial.write(c);
-        if (c == '\n' && currentLineIsBlank) {
-          client.println(F("HTTP/1.1 200 OK"));
-          client.println(F("Content-Type: application/json"));
-          client.println(F("Connection: close"));
-          client.println(F("Refresh: 2"));
-          client.println();
-          client.println(F("{"));
-          for (int i = 0; i < dht_count; i++) {
-            DHT dht = dht_list[i];
-            float temp = dht.readTemperature();
-            float humidity = dht.readHumidity();
-            if (isnan(temp) || isnan(humidity)) {
-              continue;
-            }
-            String dht_name = dht_name_list[i];
-            client.print(F("  \""));
-            client.print(dht_name);
-            client.println(F("\": {"));
-            client.print(F("    \"temperature\": "));
-            client.print(temp);
-            client.println(F(","));
-            client.print(F("    \"humidity\": "));
-            client.println(humidity);
-            client.println(F("  },"));
-          }
-          client.println(F("  \"uv\": {"));
-          client.print(F("    \"uva\": "));
-          client.print(uv.readUVA());
-          client.println(F(","));
-          client.print(F("    \"uvb\": "));
-          client.print(uv.readUVB());
-          client.println(F(","));
-          client.print(F("    \"uvi\": "));
-          client.println(uv.readUVI());
-          client.println(F("  }"));
-          client.println(F("}"));
-          break;
-        }
-        if (c == '\n') {
-          currentLineIsBlank = true;
-        } else if (c != '\r') {
-          currentLineIsBlank = false;
-        }
-      }
-    }
-    delay(1);
-    client.stop();
-    Serial.println(F("client disonnected"));
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(F("."));
   }
+  
+  Serial.println();
+  Serial.print(F("SSID: "));
+  Serial.println(WiFi.SSID());
+  Serial.print(F("IP Address: "));
+  Serial.println(WiFi.localIP());
+  Serial.print(F("signal strength (RSSI):"));
+  Serial.print(WiFi.RSSI());
+  Serial.println(F(" dBm"));
+
+  server.on(F("/"), handleRoot);
+
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+  Serial.println("HTTP server started");
 }
 
-void printWifiStatus() {
-  Serial.print("SSID: ");
-  Serial.println(WiFi.SSID());
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("signal strength (RSSI):");
-  Serial.print(WiFi.RSSI());
-  Serial.println(" dBm");
+void loop(void) {
+  server.handleClient();
 }
