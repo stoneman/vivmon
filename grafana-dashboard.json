@@ -297,10 +297,11 @@
         "y": 2
       },
       "id": 16,
+      "interval": "",
       "options": {
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -494,7 +495,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -2153,5 +2154,5 @@
   "timezone": "",
   "title": "Vivarium",
   "uid": "AqJ7GqIMz",
-  "version": 23
+  "version": 24
 }
